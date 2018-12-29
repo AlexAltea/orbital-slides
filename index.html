@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>reveal.js</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/moon.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<style>
+			.graph-arrow {
+				margin-bottom: 10px;
+			}
+
+			.shit-1 {
+				padding: 10px;
+				margin-top: 10px;
+				background-color: #444;
+			}
+
+			.slide-bg:after img {
+    content: '';
+    position: absolute;
+    top: 0%;
+    left: 0%;
+    width: 100%;
+    height: 100%;
+    box-shadow: inset 0px 0px 150px 60px rgba(0,0,0,0.8);
+}
+		</style>
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<h1>Orbital</h1>
+                    <h3>An experimental low-level PlayStation 4 emulator</h3>
+					<p>&nbsp;</p>
+					<p style="margin-top:-20px">Lightning Talks Overflow @ 35C3</p>
+					<p style="margin-top:-20px">December 29th, 2018</p>
+					<p>&nbsp;</p>
+					<p>@AlexAltea</p>
+				</section>
+				<section>
+					<h3>Disclaimer: Gross over-simplifications.</h3>
+				</section>
+				<section>
+					<h3>Emulation</h3>
+					<img src="img/emu.png" height="512" style="background:none; border:none; box-shadow:none;">
+				</section>
+				<section class="slide-bg" data-background-image="img/apu.jpg">
+					<h1 style="padding-bottom:400px">CPU</h1>
+				</section>
+				<section>
+					<h1>Translation?</h1>
+					<p class="hl-white">
+						Guest and host share the same architecture:</br>
+						However, we need to execute privileged instructions.
+					</p>
+					<p class="fragment hl-white">Interpreters are too slow.</p>
+					<p class="fragment hl-white">Recompilers are too slow.</p>
+					<p class="fragment hl-white">Solution: <b><blink>Virtualization!</blink></b></p>
+				</section>
+				<section>
+					<h1>Hypervisors</h1>
+					<p>
+						Target: We want an hypervisor that is:
+						<ul>
+							<li><b>Open-source</b>: Easy to hack.</li>
+							<li><b>Cross-platform</b>: Easy to port.</li>
+							<li><b>Type-2</b>: Easy to install.</li>
+						</ul>
+					</p>
+					<p class="fragment hl-white">
+						...and the winner is <i>Intel HAXM</i>!
+					</p>
+				</section>
+				<section>
+					<h1>HAXM</h1>
+					<p>
+						<b>Compatible OSs</b>: Linux, Windows, MacOS, NetBSD.
+						<b>Compatible CPUs</b>: Intel (...AMD SVM support planned).
+					</p>
+					<p class="fragment hl-white" data-fragment-index="1">Our contributions<br>
+						<ul>
+							<li class="fragment" data-fragment-index="1">New x86 instruction emulator.</li>
+							<li class="fragment" data-fragment-index="1">Debugging support.</li>
+							<li class="fragment" data-fragment-index="1">Creating test suites and setting-up CI.</li>
+							<li class="fragment" data-fragment-index="1">Code refactoring, cleanup, improvements, etc.</li>
+						</ul>
+					</p>
+				</section>
+				<section>
+					<p>Enough to run the PS4 kernel/userland software!</p>
+					<p>More at <a href="https://github.com/intel/haxm">github.com/intel/haxm</a>.</p>
+				</section>
+				<section class="slide-bg" data-background-image="img/aeolia.jpg">
+					<h1 style="padding-bottom:400px">Hardware</h1>
+				</section>
+				<section>
+					<p><i>Orbital</i> is based on <b>QEMU</b>, which allows us to:</p>
+					<ul>
+						<li>Create and manage VM/VCPU instances in HAXM.</li>
+						<li>Create custom devices, and hook the IO/MMIO they expose to the virtual machine.</li>
+					</ul>
+				</section>
+				<section>
+					<h1>SAMU</h1>
+					<p class="hl-white">AM32 CPU running <i>Secure Modules</i> written by Sony.</p>
+					<p class="fragment hl-white">
+						No publicly known exploitable vulnerabilities:<br>
+						Essentially a black-box that handles: decryption, encryption, compression, verification, etc.
+					</p>
+					<p class="fragment hl-white">
+						Question: How can SAMU be emulated *without keys*?
+					</p>
+				</section>
+				<section>
+					<h1>SAMU</h1>
+					<p class="hl-white">
+						<ul>
+							<li class="hl-white">
+								<b>Decompression</b>: Just link <i>zlib</i>.
+							</li>
+							<li class="hl-white">
+								<b>Verification</b>: Just hardcode <i>"OK"</i> answers.
+							</li>
+							<li class="fragment hl-white">
+								<b>Decrypting static data</b> (e.g. ELFs):<br>
+								Decrypt data on the real console,<br>
+								then hardcode results in the emulator.
+							</li>
+							<li class="fragment hl-white">
+								<b>Decrypting dynamic data</b> (e.g. HDD, saves):<br>
+								Pick arbitrary key, {en,de}crypt everything with it.
+							</li>
+						</ul>
+					</p>
+				</section>
+				<section>
+					<h1>GPU</h1>
+					<p class="hl-white">
+						Primary focused on <i>GFX</i> MMIO registers.
+						It describes the pipeline state can be modelled with Vulkan.
+					</p>
+					<p class="hl-white">
+						<b>CP emulation:</b>
+						<span style="font-size:70%">
+							Consumes PM4 commands, which can trigger MMIO/memory accesses, draws, among other actions, which are mapped to Vulkan commands.
+						</span>
+					</p>
+					<p class="hl-white">
+						<b>GCN emulation:</b>
+						<span style="font-size:70%">
+							GCN shader bytecode can be translated to SPIR-V consumed by the Vulkan drivers.
+						</span>
+					</p>
+				</ul>
+				</section>
+				<section>
+					<h1>Aeolia</h1>
+					<p class="hl-white">
+						Marvell Armada SoC (ARM)
+					</p>
+					<p class="hl-white">
+						<ul style="font-size:80%">
+							<li><code>104D:908F Aeolia ACPI</code></li>
+							<li><code>104D:909E Aeolia GBE controller</code></li>
+							<li><code>104D:909F Aeolia AHCI</code></li>
+							<li><code>104D:90A0 Aeolia SDHCI</code></li>
+							<li><code>104D:90A1 Aeolia PCI Express glue</code></li>
+							<li><code>104D:90A2 Aeolia DMA controller</code></li>
+							<li><code>104D:90A3 Aeolia Memory (DDR3/SPM)</code></li>
+							<li><code>104D:90A4 Aeolia XHCI USB 3.0 controller</code></li>
+						</ul>
+					</p>
+				</section>
+				<section>
+					<h1>Aeolia</h1>
+					<p class="hl-white">
+						Most of those can be forwarded to QEMU devices.
+					</p>
+					<p class="fragment hl-white">
+						Interesting is <i>Aeolia PCIe glue</i> device, which exposes registers to communicate with the Aeolia over <i>ICC</i>. 
+					</p>
+					<p class="fragment hl-white">
+						Although would be theoretically possible run the Aeolia software, we are simply high-level emulating it, i.e. reimplementing the handlers for each ICC query.
+					</p>
+				</section>
+				<section>
+					<h1>Status</h1>
+					<p class="hl-white">
+						<ul> 
+							<li>Kernel boots successfully (including device drivers!)</li>
+							<li>Some boot-time userland applications run fine:</li>
+							<ul style="font-size:80%">
+								<li><code>/mini-syscore.elf</code> runs successfully.</li>
+								<li><code>/SceSysAvControl.elf</code> runs successfully.</li>
+							</ul>
+							<li><code>/mini-syscore.elf</code> detects an issue and goes to Safe Mode for recovery (supposed to happen!).</li>
+							<li><code>/safemode.elf</code> runs successfully and waits for gamepad input, while submitting draw commands.</li>
+						</ul>
+					</p>
+				</section>
+				<section>
+					<h3>Demo</h3>
+					<a href="https://youtu.be/to2eM-EwG2I">
+						<img src="img/ui.png" height="512" style="background:none; border:none; box-shadow:none;">
+					</a>
+				</section>
+				<section>
+					<h1>Thanks!</h1>
+					<p>Discussion at <code>#orbital-emu</code> @ freenode!</p>
+					<p>Source at <a href="https://github.com/AlexAltea/orbital">github.com/AlexAltea/orbital</a></p>
+					<p>News at <a href="https://twitter.com/AlexAltea">twitter.com/AlexAltea</a></p>
+					<p>&nbsp;</p>
+					<p style="font-size:80%">Shout-out to all PS4 devs and Orbital IRC/Discord people!</p>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
